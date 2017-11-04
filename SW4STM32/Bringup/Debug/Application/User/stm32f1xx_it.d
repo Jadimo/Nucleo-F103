@@ -20,6 +20,8 @@ Application/User/stm32f1xx_it.o: F:/STM/Code/Bringup/Src/stm32f1xx_it.c \
  F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h \
  F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h \
  F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h \
+ F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h \
+ F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h \
  F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h \
  F:/STM/Code/Bringup/Inc/stm32f1xx_it.h
 
@@ -64,6 +66,10 @@ F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h:
 F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h:
 
 F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h:
+
+F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h:
+
+F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h:
 
 F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h:
 

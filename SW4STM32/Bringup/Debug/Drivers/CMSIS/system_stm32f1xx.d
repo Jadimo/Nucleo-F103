@@ -21,6 +21,8 @@ Drivers/CMSIS/system_stm32f1xx.o: \
  F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h \
  F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h \
  F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h \
+ F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h \
+ F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h \
  F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
 
 F:/STM/Code/Bringup/Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h:
@@ -64,5 +66,9 @@ F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h:
 F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h:
 
 F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h:
+
+F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h:
+
+F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h:
 
 F:/STM/Code/Bringup/Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h:
