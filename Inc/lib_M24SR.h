@@ -46,6 +46,10 @@
   */
 	 
 /* Exported constants --------------------------------------------------------*/
+ /*!< constant Unsigned integer types  */
+ typedef const unsigned char     ucs8;
+ typedef const unsigned short    ucs16;
+ //typedef const unsigned long     uc32;
 	 
 /** @defgroup lib_M24SR_Exported_Constants
   * @{
@@ -122,7 +126,7 @@ uint16_t M24SR_DisableReadOnly( uint8_t* pCurrentWritePassword);
 uint16_t M24SR_EnableWriteOnly( uint8_t* pCurrentWritePassword);	
 uint16_t M24SR_DisableWriteOnly( uint8_t* pCurrentWritePassword);
 
-uint16_t M24SR_ManageGPO( uc8 GPO_config, uc8 mode);	
+uint16_t M24SR_ManageGPO( ucs8 GPO_config, ucs8 mode);
 
 #ifdef __cplusplus
 }

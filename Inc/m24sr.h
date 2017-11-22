@@ -108,6 +108,11 @@ typedef enum{
 	STATE_CONTROL
 }M24SR_GPO_MGMT;
 
+/*!< constant Unsigned integer types  */
+typedef const unsigned char     uc8;
+typedef const unsigned short    uc16;
+//typedef const unsigned long     uc32;
+
 /* Exported constants --------------------------------------------------------*/
 
 /** @defgroup lib_M24SR_Exported_Constants

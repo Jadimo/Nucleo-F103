@@ -57,12 +57,12 @@ TIM_HandleTypeDef htim4;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_I2C1_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_I2C1_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-
+void M24SR_I2CInit(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -73,7 +73,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  sURI_Info URI;
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -93,11 +93,24 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_I2C1_Init();
-  MX_TIM4_Init();
 
+  MX_I2C1_Init();
+  MX_GPIO_Init();
+  MX_TIM4_Init();
+  HAL_Delay(100);
+  HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
   /* USER CODE BEGIN 2 */
+  while (TT4_Init() != SUCCESS){
+	 // HAL_Delay(100);
+  }
+  HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
+  strcpy(URI.protocol,URI_ID_0x01_STRING);
+  strcpy(URI.URI_Message,"google.com");
+  strcpy(URI.Information,"\0");
+
+  while (TT4_WriteURI(&URI) != SUCCESS){
+	 // HAL_Delay(100);
+  }
 
   /* USER CODE END 2 */
 
@@ -236,7 +249,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, LED1_Pin|RF_DIS_Pin|LED4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LED2_Pin|LED3_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : Button_Pin */
   GPIO_InitStruct.Pin = Button_Pin;
@@ -250,28 +263,107 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : GPO_IT_Pin */
-  GPIO_InitStruct.Pin = GPO_IT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPO_IT_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : LED2_Pin LED3_Pin */
-  GPIO_InitStruct.Pin = LED2_Pin|LED3_Pin;
+  /*Configure GPIO pin : LED2_Pin */
+  GPIO_InitStruct.Pin = LED2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(LED2_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
-
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
 /* USER CODE BEGIN 4 */
+void M24SR_I2CInit (){
+
+	I2C1_FORCE_RESET();
+	HAL_Delay(1000);
+	I2C1_RELEASE_RESET();
+	HAL_GPIO_DeInit(SCL_GPIO_Port, SCL_Pin);
+	HAL_GPIO_DeInit(SDA_GPIO_Port, SDA_Pin);
+	__HAL_AFIO_REMAP_I2C1_DISABLE();
+
+	GPIO_InitTypeDef  GPIO_InitStruct;
+	I2Cx_SCL_GPIO_CLK_ENABLE();
+	I2Cx_SDA_GPIO_CLK_ENABLE();
+	__HAL_RCC_AFIO_CLK_ENABLE();
+	I2Cx_CLK_ENABLE();
+	GPIO_InitStruct.Pin       = SCL_Pin;
+	GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
+	GPIO_InitStruct.Pull      = GPIO_PULLUP;
+	GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+	HAL_GPIO_Init(SCL_GPIO_Port, &GPIO_InitStruct);
+	GPIO_InitStruct.Pin		  = SDA_Pin;
+	GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
+	GPIO_InitStruct.Pull      = GPIO_PULLUP;
+	GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+	HAL_GPIO_Init(SDA_GPIO_Port, &GPIO_InitStruct);
+	__HAL_AFIO_REMAP_I2C1_ENABLE();
+
+	hi2c1.Instance 	     = M24SR_I2C;
+	hi2c1.Init.AddressingMode  = I2C_ADDRESSINGMODE_7BIT;
+	#if defined (STM32F302x8)
+	  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	  hi2c1.Init.NoStretchMode   = I2C_NOSTRETCH_DISABLE;
+	#elif defined (STM32F401xE)
+	  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLED;
+	  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLED;
+	  hi2c1.Init.NoStretchMode   = I2C_NOSTRETCH_DISABLED;
+	#endif
+	  hi2c1.Init.OwnAddress1     = 0;
+	  hi2c1.Init.OwnAddress2     = 0;
+	#if (defined USE_STM32F4XX_NUCLEO) || (defined USE_STM32L1XX_NUCLEO) || \
+		  (defined USE_STM32F1XX_NUCLEO)
+	  hi2c1.Init.ClockSpeed      = M24SR_I2C_SPEED;
+	  hi2c1.Init.DutyCycle       = I2C_DUTYCYCLE_2;
+	#elif (defined USE_STM32F0XX_NUCLEO) || (defined USE_STM32L0XX_NUCLEO) || \
+	      (defined USE_STM32F3XX_NUCLEO) || (defined USE_STM32L4XX_NUCLEO)
+	  hi2c1.Init.Timing          = M24SR_I2C_SPEED;
+	#endif
+	if(HAL_I2C_Init(&hi2c1) != HAL_OK)
+	{
+	    /* Initialization Error */
+	    Error_Handler();
+	}
+	HAL_Delay(100);
+
+}
+/**
+  * @brief  This function retrieve current tick
+  * @param	ptickstart: pointer on a variable to store current tick value
+  */
+
+void M24SR_WaitMs(uint32_t time_ms)
+{
+	wait_ms(time_ms);
+}
+
+void M24SR_GetTick( uint32_t *ptickstart )
+{
+	*ptickstart = HAL_GetTick();
+}
+/**
+  * @brief  This function read the state of the M24SR GPO
+	* @param	none
+  * @retval GPIO_PinState : state of the M24SR GPO
+  */
+void M24SR_GPO_ReadPin( GPIO_PinState * pPinState)
+{
+	*pPinState = HAL_GPIO_ReadPin(M24SR_GPO_PIN_PORT,M24SR_GPO_PIN);
+}
+
+/**
+  * @brief  This function set the state of the M24SR RF disable pin
+	* @param	PinState: put RF disable pin of M24SR in PinState (1 or 0)
+  */
+void M24SR_RFDIS_WritePin( GPIO_PinState PinState)
+{
+	HAL_GPIO_WritePin(M24SR_RFDIS_PIN_PORT,M24SR_RFDIS_PIN,PinState);
+}
+
 
 /* USER CODE END 4 */
 
@@ -283,8 +375,9 @@ static void MX_GPIO_Init(void)
 void _Error_Handler(char * file, int line)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
+	HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
   /* User can add his own implementation to report the HAL error return state */
-  while(1) 
+  while(1)
   {
   }
   /* USER CODE END Error_Handler_Debug */ 

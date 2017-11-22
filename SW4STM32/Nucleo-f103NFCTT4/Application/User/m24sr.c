@@ -38,6 +38,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "m24sr.h"
+#include "drv_i2c_M24SR.h"
 
 /** @addtogroup M24SR_Driver
   * @{
@@ -383,7 +384,7 @@ uint16_t M24SR_GetSession ( void )
 {
 	uint8_t Buffer = M24SR_OPENSESSION;
 	int16_t 	status;
-  
+
 	errchk(M24SR_SendI2Ccommand ( 0x01 , &Buffer ));
 	
 	/* Insure no access will be done just after open session */	

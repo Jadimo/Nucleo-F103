@@ -78,8 +78,8 @@
 	 
 /* Flags ---------------------------------------------------------------------*/
 /* If both of this two flags are disabled, then the I²C polling will be used */
-//#define I2C_GPO_SYNCHRO_ALLOWED /* allow tu use GPO polling as I2C synchronization */ 
-#define I2C_GPO_INTERRUPT_ALLOWED /* allow tu use GPO interrupt as I2C synchronization ! NOT SUPPORTED BY MBED ! */ 
+#define I2C_GPO_SYNCHRO_ALLOWED /* allow tu use GPO polling as I2C synchronization */
+//#define I2C_GPO_INTERRUPT_ALLOWED /* allow tu use GPO interrupt as I2C synchronization ! NOT SUPPORTED BY MBED ! */
 	 
 #define EXTERNAL_PULLUP /* If SCL is already pulled up using an external resistor */
 	 
@@ -90,10 +90,7 @@
 	{goto Error;} 
 #endif
 
-/*!< constant Unsigned integer types  */
-typedef const unsigned char     uc8;
-typedef const unsigned short    uc16;
-//typedef const unsigned long     uc32;
+
 	
 	
 /** @addtogroup M24SR_Driver
