@@ -53,12 +53,17 @@
 #define Button_EXTI_IRQn EXTI15_10_IRQn
 #define LED1_Pin GPIO_PIN_5
 #define LED1_GPIO_Port GPIOA
+#define GPO_Pin GPIO_PIN_6
+#define GPO_GPIO_Port GPIOA
+#define GPO_EXTI_IRQn EXTI9_5_IRQn
 #define RF_DIS_Pin GPIO_PIN_7
 #define RF_DIS_GPIO_Port GPIOA
 #define LED4_Pin GPIO_PIN_10
 #define LED4_GPIO_Port GPIOA
 #define LED2_Pin GPIO_PIN_4
 #define LED2_GPIO_Port GPIOB
+#define LED3_Pin GPIO_PIN_5
+#define LED3_GPIO_Port GPIOB
 #define SCL_Pin GPIO_PIN_8
 #define SCL_GPIO_Port GPIOB
 #define SDA_Pin GPIO_PIN_9
@@ -73,14 +78,14 @@
 
 /* USER CODE BEGIN Private defines */
 /* M24SR GPIO mapping -------------------------------------------------------------------------*/
-#define M24SR_SDA_PIN 														GPIO_PIN_9
-#define M24SR_SDA_PIN_PORT 												GPIOB
-#define M24SR_SCL_PIN 														GPIO_PIN_8
-#define M24SR_SCL_PIN_PORT 												GPIOB
-#define M24SR_GPO_PIN 														GPIO_PIN_6
-#define M24SR_GPO_PIN_PORT 												GPIOA
-#define M24SR_RFDIS_PIN 													GPIO_PIN_7
-#define M24SR_RFDIS_PIN_PORT 											GPIOA
+#define M24SR_SDA_PIN 														SDA_Pin
+#define M24SR_SDA_PIN_PORT 												SDA_GPIO_Port
+#define M24SR_SCL_PIN 														SCL_Pin
+#define M24SR_SCL_PIN_PORT 												SCL_GPIO_Port
+#define M24SR_GPO_PIN 														GPO_Pin
+#define M24SR_GPO_PIN_PORT 												GPO_GPIO_Port
+#define M24SR_RFDIS_PIN 													RF_DIS_Pin
+#define M24SR_RFDIS_PIN_PORT 											RF_DIS_GPIO_Port
 
 #define wait_ms(time) HAL_Delay(time)
 

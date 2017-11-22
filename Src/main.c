@@ -47,22 +47,21 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
-TIM_HandleTypeDef htim4;
-
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+extern uint8_t uSynchroMode;
+extern uint8_t GPO_Low;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM4_Init(void);
 static void MX_I2C1_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 void M24SR_I2CInit(void);
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -93,31 +92,35 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-
-  MX_I2C1_Init();
   MX_GPIO_Init();
-  MX_TIM4_Init();
-  HAL_Delay(100);
-  HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
+  MX_I2C1_Init();
+
   /* USER CODE BEGIN 2 */
-  while (TT4_Init() != SUCCESS){
-	 // HAL_Delay(100);
-  }
+  while (TT4_Init() != SUCCESS);
+
+  HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
+  HAL_Delay(500);
+  HAL_GPIO_TogglePin(LED3_GPIO_Port,LED3_Pin);
+  HAL_Delay(500);
   HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
+  HAL_Delay(500);
+
   strcpy(URI.protocol,URI_ID_0x01_STRING);
-  strcpy(URI.URI_Message,"google.com");
+  strcpy(URI.URI_Message,"pssite.com");
   strcpy(URI.Information,"\0");
-
-  while (TT4_WriteURI(&URI) != SUCCESS){
-	 // HAL_Delay(100);
-  }
-
+  while (TT4_WriteURI(&URI) != SUCCESS);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
+	  HAL_Delay(500);
+	  HAL_GPIO_TogglePin(LED3_GPIO_Port,LED3_Pin);
+	  HAL_Delay(500);
+	  HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
+	  HAL_Delay(500);
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -194,40 +197,6 @@ static void MX_I2C1_Init(void)
 
 }
 
-/* TIM4 init function */
-static void MX_TIM4_Init(void)
-{
-
-  TIM_SlaveConfigTypeDef sSlaveConfig;
-  TIM_MasterConfigTypeDef sMasterConfig;
-
-  htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 15999;
-  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 1999;
-  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_DISABLE;
-  sSlaveConfig.InputTrigger = TIM_TS_ITR3;
-  if (HAL_TIM_SlaveConfigSynchronization(&htim4, &sSlaveConfig) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-}
-
 /** Configure pins as 
         * Analog 
         * Input 
@@ -249,7 +218,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, LED1_Pin|RF_DIS_Pin|LED4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, LED2_Pin|LED3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : Button_Pin */
   GPIO_InitStruct.Pin = Button_Pin;
@@ -263,13 +232,22 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LED2_Pin */
-  GPIO_InitStruct.Pin = LED2_Pin;
+  /*Configure GPIO pin : GPO_Pin */
+  GPIO_InitStruct.Pin = GPO_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPO_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : LED2_Pin LED3_Pin */
+  GPIO_InitStruct.Pin = LED2_Pin|LED3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LED2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 3, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
@@ -277,6 +255,9 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void M24SR_I2CInit (){
+
+	if( hi2c1.Instance == M24SR_I2C)
+		  HAL_I2C_DeInit(&hi2c1);
 
 	I2C1_FORCE_RESET();
 	HAL_Delay(1000);
@@ -364,6 +345,20 @@ void M24SR_RFDIS_WritePin( GPIO_PinState PinState)
 	HAL_GPIO_WritePin(M24SR_RFDIS_PIN_PORT,M24SR_RFDIS_PIN,PinState);
 }
 
+
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	sURI_Info URI;
+	if(GPIO_Pin == M24SR_GPO_PIN)
+	{
+		if( uSynchroMode == M24SR_INTERRUPT_GPO)
+			GPO_Low = 1;
+	}
+	if(GPIO_Pin == Button_Pin){
+		HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
+	}
+}
 
 /* USER CODE END 4 */
 
