@@ -51,6 +51,12 @@ I2C_HandleTypeDef hi2c1;
 /* Private variables ---------------------------------------------------------*/
 extern uint8_t uSynchroMode;
 extern uint8_t GPO_Low;
+uint16_t counter;
+uint16_t last_count;
+sURI_Info URI;
+sAARInfo App;
+sSMSInfo sms;
+sGeoInfo geo;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -62,6 +68,7 @@ static void MX_I2C1_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 void M24SR_I2CInit(void);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
+void M24SR_Program(uint16_t counter);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -72,7 +79,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  sURI_Info URI;
+
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -105,10 +112,9 @@ int main(void)
   HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
   HAL_Delay(500);
 
-  strcpy(URI.protocol,URI_ID_0x01_STRING);
-  strcpy(URI.URI_Message,"pssite.com");
-  strcpy(URI.Information,"\0");
-  while (TT4_WriteURI(&URI) != SUCCESS);
+  counter=0;
+  last_count=-1;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -121,6 +127,11 @@ int main(void)
 	  HAL_Delay(500);
 	  HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
 	  HAL_Delay(500);
+	  if(counter!=last_count){
+		  HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
+		  last_count=counter;
+		  M24SR_Program(counter);
+	  }
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -349,14 +360,47 @@ void M24SR_RFDIS_WritePin( GPIO_PinState PinState)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	sURI_Info URI;
 	if(GPIO_Pin == M24SR_GPO_PIN)
 	{
 		if( uSynchroMode == M24SR_INTERRUPT_GPO)
 			GPO_Low = 1;
+		HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
 	}
 	if(GPIO_Pin == Button_Pin){
-		HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
+		counter++;
+		if(counter >= 4){
+			counter = 0;
+		}
+	}
+}
+
+void M24SR_Program(uint16_t counter){
+	switch(counter){
+	case 0:
+		strcpy(URI.protocol,URI_ID_0x01_STRING);
+		strcpy(URI.URI_Message,"pssite.com");
+		strcpy(URI.Information,"\0");
+		while (TT4_WriteURI(&URI) != SUCCESS);
+		break;
+	case 1:
+		strcpy(App.PakageName,"com.sonyericsson.music");
+		while (TT4_AddAAR(&App)!=SUCCESS);
+		break;
+	case 2:
+		strcpy(geo.Latitude,"50.026596");
+		strcpy(geo.Longitude,"21.984825");
+		strcpy(geo.Information,"\0");
+		while(TT4_WriteGeo(&geo) != SUCCESS);
+		break;
+	case 3:
+		strcpy(sms.Message,"Hello World");
+		strcpy(sms.PhoneNumber,"792 240 994");
+		strcpy(sms.Information,"\0");
+		while(TT4_WriteSMS(&sms) != SUCCESS);
+		break;
+	default:
+		counter=0;
+		break;
 	}
 }
 
@@ -370,7 +414,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 void _Error_Handler(char * file, int line)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-	HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
+	HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
   /* User can add his own implementation to report the HAL error return state */
   while(1)
   {
