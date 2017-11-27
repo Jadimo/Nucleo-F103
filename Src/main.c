@@ -47,12 +47,15 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+TIM_HandleTypeDef htim3;
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 extern uint8_t uSynchroMode;
 extern uint8_t GPO_Low;
 uint16_t counter;
 uint16_t last_count;
+uint16_t led_effect;
 sURI_Info URI;
 sAARInfo App;
 sSMSInfo sms;
@@ -63,12 +66,14 @@ sGeoInfo geo;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM3_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 void M24SR_I2CInit(void);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void M24SR_Program(uint16_t counter);
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -101,19 +106,16 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
+  MX_TIM3_Init();
 
   /* USER CODE BEGIN 2 */
-  while (TT4_Init() != SUCCESS);
+  HAL_TIM_Base_Start_IT(&htim3);
 
-  HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
-  HAL_Delay(500);
-  HAL_GPIO_TogglePin(LED3_GPIO_Port,LED3_Pin);
-  HAL_Delay(500);
-  HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
-  HAL_Delay(500);
+  while (TT4_Init() != SUCCESS);
 
   counter=0;
   last_count=-1;
+  led_effect=0;
 
   /* USER CODE END 2 */
 
@@ -121,12 +123,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
-	  HAL_Delay(500);
-	  HAL_GPIO_TogglePin(LED3_GPIO_Port,LED3_Pin);
-	  HAL_Delay(500);
-	  HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
-	  HAL_Delay(500);
 	  if(counter!=last_count){
 		  HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
 		  last_count=counter;
@@ -202,6 +198,40 @@ static void MX_I2C1_Init(void)
   hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
   hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
   if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
+/* TIM3 init function */
+static void MX_TIM3_Init(void)
+{
+
+  TIM_SlaveConfigTypeDef sSlaveConfig;
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 9999;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 1999;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_DISABLE;
+  sSlaveConfig.InputTrigger = TIM_TS_ITR2;
+  if (HAL_TIM_SlaveConfigSynchronization(&htim3, &sSlaveConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -364,7 +394,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	{
 		if( uSynchroMode == M24SR_INTERRUPT_GPO)
 			GPO_Low = 1;
-		HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
 	}
 	if(GPIO_Pin == Button_Pin){
 		counter++;
@@ -401,6 +430,45 @@ void M24SR_Program(uint16_t counter){
 	default:
 		counter=0;
 		break;
+	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim->Instance == TIM3){
+		switch(led_effect){
+		case 0:
+			HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
+			HAL_GPIO_TogglePin(LED3_GPIO_Port,LED3_Pin);
+			led_effect++;
+			break;
+		case 1:
+			HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
+			HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
+			led_effect++;
+			break;
+		case 2:
+			HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
+			HAL_GPIO_TogglePin(LED3_GPIO_Port,LED3_Pin);
+			led_effect++;
+			break;
+		case 3:
+			HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
+			HAL_GPIO_TogglePin(LED3_GPIO_Port,LED3_Pin);
+			HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
+			led_effect++;
+			break;
+		case 4:
+			HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
+			HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
+			led_effect++;
+			break;
+		case 5:
+			HAL_GPIO_TogglePin(LED2_GPIO_Port,LED2_Pin);
+			HAL_GPIO_TogglePin(LED3_GPIO_Port,LED3_Pin);
+			HAL_GPIO_TogglePin(LED4_GPIO_Port,LED4_Pin);
+			led_effect=0;
+			break;
+		}
 	}
 }
 
