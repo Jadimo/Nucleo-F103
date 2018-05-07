@@ -47,8 +47,13 @@
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan;
 
+TIM_HandleTypeDef htim3;
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+
+CanRxMsgTypeDef rmsg;
+CanTxMsgTypeDef tmsg;
 
 /* USER CODE END PV */
 
@@ -56,6 +61,7 @@ CAN_HandleTypeDef hcan;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN_Init(void);
+static void MX_TIM3_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -64,8 +70,9 @@ void CAN_filter_init(void);
 
 /* USER CODE BEGIN 0 */
 
-CanTxMsgTypeDef tmsg;
-CanRxMsgTypeDef rmsg;
+uint8_t Canmsg[8];
+int Sendflag;
+int counter;
 
 /* USER CODE END 0 */
 
@@ -95,10 +102,12 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_CAN_Init();
+  MX_TIM3_Init();
 
   /* USER CODE BEGIN 2 */
 
   CAN_filter_init();
+  HAL_TIM_Base_Start_IT(&htim3);
 
   /*##-3- Start the Transmission process #####################################*/
   tmsg.StdId = 0x123;
@@ -109,15 +118,23 @@ int main(void)
   tmsg.Data[1] = 0xFE;
   hcan.pTxMsg = &tmsg;
 
+  HAL_CAN_Receive_IT(&hcan,CAN_FIFO0);
+
+  Sendflag = 0;
+  counter = 0;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_CAN_Transmit(&hcan, 10);
-	  HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
-	  HAL_Delay(1000);
+	  if (Sendflag == 1){
+		  tmsg.Data[0] = Canmsg[0];
+		  tmsg.Data[1] = Canmsg[1];
+		  HAL_CAN_Transmit(&hcan, 10);
+		  Sendflag = 0;
+	  }
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -197,6 +214,40 @@ static void MX_CAN_Init(void)
 
 }
 
+/* TIM3 init function */
+static void MX_TIM3_Init(void)
+{
+
+  TIM_SlaveConfigTypeDef sSlaveConfig;
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 11999;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 4999;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_DISABLE;
+  sSlaveConfig.InputTrigger = TIM_TS_ITR2;
+  if (HAL_TIM_SlaveConfigSynchronization(&htim3, &sSlaveConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
 /** Configure pins as 
         * Analog 
         * Input 
@@ -238,20 +289,77 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void CAN_filter_init(void)
 {
+	static CanTxMsgTypeDef TxMsg;
+	static CanRxMsgTypeDef RxMsg;
+
+	hcan.pRxMsg = &RxMsg;
+	hcan.pTxMsg = &TxMsg;
+
 	CAN_FilterConfTypeDef  sFilterConfig;
 	/*##-2- Configure the CAN Filter ###########################################*/
 	sFilterConfig.FilterNumber = 0;
-    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-    sFilterConfig.FilterIdHigh = 0x200 << 5;;
-    sFilterConfig.FilterIdLow = 0x0000;
-    sFilterConfig.FilterMaskIdHigh = 0x700 << 5;
-    sFilterConfig.FilterMaskIdLow = 0x0000;
-    sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
-    sFilterConfig.FilterActivation = ENABLE;
-    sFilterConfig.BankNumber =0;
-    HAL_CAN_ConfigFilter(&hcan, &sFilterConfig);
+	sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+	sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+	sFilterConfig.FilterIdHigh = 0x0000;
+	sFilterConfig.FilterIdLow = 0x0000;
+	sFilterConfig.FilterMaskIdHigh = 0x0000;
+	sFilterConfig.FilterMaskIdLow = 0x0000;
+	sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+	sFilterConfig.FilterActivation = ENABLE;
+	sFilterConfig.BankNumber = 14;
+
+	HAL_CAN_ConfigFilter(&hcan, &sFilterConfig);
 }
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if(GPIO_Pin == Button_Pin){
+		Sendflag = 1;
+	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim->Instance == TIM3){
+
+	}
+}
+
+void RxIntEnable(CAN_HandleTypeDef *CanHandle) {
+	if(CanHandle->State == HAL_CAN_STATE_BUSY_TX)
+	  CanHandle->State = HAL_CAN_STATE_BUSY_TX_RX0;
+	else {
+	  CanHandle->State = HAL_CAN_STATE_BUSY_RX0;
+
+		/* Set CAN error code to none */
+		CanHandle->ErrorCode = HAL_CAN_ERROR_NONE;
+
+		/* Enable Error warning Interrupt */
+		__HAL_CAN_ENABLE_IT(CanHandle, CAN_IT_EWG);
+
+		/* Enable Error passive Interrupt */
+		__HAL_CAN_ENABLE_IT(CanHandle, CAN_IT_EPV);
+
+		/* Enable Bus-off Interrupt */
+		__HAL_CAN_ENABLE_IT(CanHandle, CAN_IT_BOF);
+
+		/* Enable Last error code Interrupt */
+		__HAL_CAN_ENABLE_IT(CanHandle, CAN_IT_LEC);
+
+		/* Enable Error Interrupt */
+		__HAL_CAN_ENABLE_IT(CanHandle, CAN_IT_ERR);
+	  }
+
+	  // Enable FIFO 0 message pending Interrupt
+	  __HAL_CAN_ENABLE_IT(CanHandle, CAN_IT_FMP0);
+}
+
+void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef *CanHandle){
+	HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
+	Canmsg[0] = CanHandle->pRxMsg->Data[0];
+	Canmsg[1] = CanHandle->pRxMsg->Data[1];
+	RxIntEnable(CanHandle);
+}
+
 /* USER CODE END 4 */
 
 /**
