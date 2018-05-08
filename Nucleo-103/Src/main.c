@@ -66,13 +66,18 @@ static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 void CAN_filter_init(void);
+void RxIntEnable(CAN_HandleTypeDef *CanHandle);
+void CanSend(uint16_t Id[2],uint8_t Msg[8]);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
 
 uint8_t Canmsg[8];
-int Sendflag;
-int counter;
+uint16_t Canid[2];
+uint8_t Sendflag;
+uint8_t counter;
+uint8_t Doorstate;
+uint8_t Errorreporter;
 
 /* USER CODE END 0 */
 
@@ -110,13 +115,6 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim3);
 
   /*##-3- Start the Transmission process #####################################*/
-  tmsg.StdId = 0x123;
-  tmsg.IDE = CAN_ID_STD;
-  tmsg.RTR = CAN_RTR_DATA;
-  tmsg.DLC = 2;
-  tmsg.Data[0] = 0xCA;
-  tmsg.Data[1] = 0xFE;
-  hcan.pTxMsg = &tmsg;
 
   HAL_CAN_Receive_IT(&hcan,CAN_FIFO0);
 
@@ -130,11 +128,25 @@ int main(void)
   while (1)
   {
 	  if (Sendflag == 1){
-		  tmsg.Data[0] = Canmsg[0];
-		  tmsg.Data[1] = Canmsg[1];
-		  HAL_CAN_Transmit(&hcan, 10);
+		  if (Doorstate == 1){
+			  //open door confirm
+			  CanSend(Canid,Canmsg);
+		  }
+		  if (Doorstate == 0){
+			  //close door confirm
+			  CanSend(Canid,Canmsg);
+		  }
 		  Sendflag = 0;
 	  }
+	  if (Errorreporter == 1){
+			  //report error
+			  Canid[0] = 0x141;
+			  for(int i=0; i<4; i++){
+				  Canmsg[i] = 0xFF;
+			  }
+			  CanSend(Canid, Canmsg);
+			  Errorreporter = 0;
+		  }
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -300,9 +312,9 @@ void CAN_filter_init(void)
 	sFilterConfig.FilterNumber = 0;
 	sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
 	sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-	sFilterConfig.FilterIdHigh = 0x0000;
+	sFilterConfig.FilterIdHigh = 0x100 << 5;
 	sFilterConfig.FilterIdLow = 0x0000;
-	sFilterConfig.FilterMaskIdHigh = 0x0000;
+	sFilterConfig.FilterMaskIdHigh = 0x700 << 5;
 	sFilterConfig.FilterMaskIdLow = 0x0000;
 	sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
 	sFilterConfig.FilterActivation = ENABLE;
@@ -315,12 +327,28 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if(GPIO_Pin == Button_Pin){
 		Sendflag = 1;
+		if(Canid[0] == 0x0){
+			Canid[0] = 0x141;
+			Canmsg[0] = 0xAC;
+			Canmsg[1] = 0xDC;
+			Canmsg[2] = 0xCA;
+			Canmsg[3] = 0xFE;
+		}
 	}
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM3){
-
+		if(counter >= 9){
+			Doorstate = 0;
+			Sendflag = 1;
+			HAL_GPIO_WritePin(LED_GPIO_Port,LED_Pin,GPIO_PIN_RESET);
+			Canmsg[1] = 0x00;
+			counter = 0;
+		}
+		if(Doorstate == 1){
+			counter++;
+		}
 	}
 }
 
@@ -354,10 +382,44 @@ void RxIntEnable(CAN_HandleTypeDef *CanHandle) {
 }
 
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef *CanHandle){
-	HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
-	Canmsg[0] = CanHandle->pRxMsg->Data[0];
-	Canmsg[1] = CanHandle->pRxMsg->Data[1];
+	if(CanHandle->pRxMsg->StdId == 0x141 && CanHandle->pRxMsg->DLC == 4){
+		Canid[0] = CanHandle->pRxMsg->StdId;
+		Canmsg[0] = CanHandle->pRxMsg->Data[0];
+		Canmsg[1] = CanHandle->pRxMsg->Data[1];
+		Canmsg[2] = CanHandle->pRxMsg->Data[2];
+		Canmsg[3] = CanHandle->pRxMsg->Data[3];
+	}
+	if(Canmsg[0] == 0x80){
+		if(Canmsg[1] == 0x01){
+			HAL_GPIO_WritePin(LED_GPIO_Port,LED_Pin,GPIO_PIN_SET);
+			Doorstate = 1;
+			Sendflag = 1;
+			}
+		else if(Canmsg[1] == 0x00){
+			HAL_GPIO_WritePin(LED_GPIO_Port,LED_Pin,GPIO_PIN_RESET);
+			Doorstate = 0;
+			Sendflag = 1;
+		}
+		else {
+			Errorreporter = 1;
+		}
+	}
+
 	RxIntEnable(CanHandle);
+}
+
+void CanSend (uint16_t ID[2], uint8_t Msg[8]){
+	  tmsg.StdId = ID[0];
+	  tmsg.IDE = CAN_ID_STD;
+	  tmsg.RTR = CAN_RTR_DATA;
+	  tmsg.DLC = 4;
+	  tmsg.Data[0] = Msg[0];
+	  tmsg.Data[1] = Msg[1];
+	  tmsg.Data[2] = Msg[2];
+	  tmsg.Data[3] = Msg[3];
+	  hcan.pTxMsg = &tmsg;
+
+	  HAL_CAN_Transmit(&hcan, 10);
 }
 
 /* USER CODE END 4 */
