@@ -41,7 +41,7 @@
 #include "stm32f1xx_hal.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "authentication.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -77,7 +77,12 @@ uint16_t Canid[2];
 uint8_t Sendflag;
 uint8_t counter;
 uint8_t Doorstate;
+uint8_t Laststate;
 uint8_t Errorreporter;
+uint8_t RFdis;
+extern uint16_t NFCID;
+extern uint16_t DOORID;
+extern uint8_t stoper;
 
 /* USER CODE END 0 */
 
@@ -113,13 +118,12 @@ int main(void)
 
   CAN_filter_init();
   HAL_TIM_Base_Start_IT(&htim3);
-
-  /*##-3- Start the Transmission process #####################################*/
-
   HAL_CAN_Receive_IT(&hcan,CAN_FIFO0);
 
   Sendflag = 0;
   counter = 0;
+  Doorstate = 0;
+  Laststate = Doorstate;
 
   /* USER CODE END 2 */
 
@@ -127,26 +131,41 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if (Sendflag == 1){
+	  if (Sendflag == 1 && Laststate != Doorstate){
 		  if (Doorstate == 1){
 			  //open door confirm
+			  Canid[0] = NFCID;
+			  Canmsg[0] = 0x80;
+			  Canmsg[1] = 0x01;
+			  Canmsg[2] = 0x55;
+			  Canmsg[3] = 0x55;
 			  CanSend(Canid,Canmsg);
 		  }
 		  if (Doorstate == 0){
 			  //close door confirm
+			  Canid[0] = NFCID;
+			  Canmsg[0] = 0x80;
+			  Canmsg[1] = 0x00;
+			  Canmsg[2] = 0x55;
+			  Canmsg[3] = 0x55;
 			  CanSend(Canid,Canmsg);
 		  }
 		  Sendflag = 0;
+		  Laststate = Doorstate;
 	  }
 	  if (Errorreporter == 1){
 			  //report error
-			  Canid[0] = 0x141;
+			  Canid[0] = DOORID;
 			  for(int i=0; i<4; i++){
 				  Canmsg[i] = 0xFF;
 			  }
 			  CanSend(Canid, Canmsg);
 			  Errorreporter = 0;
-		  }
+	  }
+	  if (RFdis == 1){
+		  CanSend(Canid, Canmsg);
+		  RFdis = 0;
+	  }
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -326,20 +345,20 @@ void CAN_filter_init(void)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if(GPIO_Pin == Button_Pin){
-		Sendflag = 1;
-		if(Canid[0] == 0x0){
-			Canid[0] = 0x141;
-			Canmsg[0] = 0xAC;
-			Canmsg[1] = 0xDC;
-			Canmsg[2] = 0xCA;
-			Canmsg[3] = 0xFE;
+		RFdis = 1;
+		if(Canmsg[0] != 0x88){
+			Canid[0] = NFCID;
+			Canmsg[0] = 0x88;
+			Canmsg[1] = 0x55;
+			Canmsg[2] = 0x55;
+			Canmsg[3] = 0x55;
 		}
 	}
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM3){
-		if(counter >= 9){
+		if(counter >= stoper){
 			Doorstate = 0;
 			Sendflag = 1;
 			HAL_GPIO_WritePin(LED_GPIO_Port,LED_Pin,GPIO_PIN_RESET);
@@ -382,7 +401,7 @@ void RxIntEnable(CAN_HandleTypeDef *CanHandle) {
 }
 
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef *CanHandle){
-	if(CanHandle->pRxMsg->StdId == 0x141 && CanHandle->pRxMsg->DLC == 4){
+	if(CanHandle->pRxMsg->StdId == DOORID && CanHandle->pRxMsg->DLC == 4){
 		Canid[0] = CanHandle->pRxMsg->StdId;
 		Canmsg[0] = CanHandle->pRxMsg->Data[0];
 		Canmsg[1] = CanHandle->pRxMsg->Data[1];
